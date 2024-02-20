@@ -43,19 +43,27 @@ async def user(user: User):
 
     return User(**new_user)
 
-@router.put("/", response_class=User)
-async def user(user: User):
-    
+from bson import ObjectId
+
+@router.put("/", response_model=User)
+async def update_user(user: User):
     user_dict = dict(user)
-    del user_dict["id"]
+    user_id = user_dict.get("id")  # Obtener el valor del ID del usuario
+
+    if not user_id:
+        return {"error": "El usuario no tiene un ID válido"}
 
     try:
-        db_client.local.users.find_one_and_replace({"_id": ObjectId(user.id)}, user_dict)
+        result = db_client.local.users.find_one_and_replace({"_id": ObjectId(user_id)}, user_dict, return_document=True)
 
-    except:
-        return {"error":"No se ha actualizado usuario"}
+        if not result:
+            return {"error": "Usuario no encontrado"}
 
-    return search_user("_id", ObjectId(user.id) )
+        return result
+
+    except Exception as e:
+        return {"error": f"No se ha podido actualizar el usuario: {str(e)}"}
+    
 
 @router.delete("/{id}",status_code=status.HTTP_204_NO_CONTENT)
 async def user(id: str):
